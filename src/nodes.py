@@ -7,114 +7,133 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from state import CRAGState
 from config import config
 from telemetry import logger, track_node
-from graders import doc_grader_chain
+from graders import batch_doc_grader_chain
 from tools import execute_web_search
 from database import KnowledgeBaseManager
 
-# 1. Initialize Shared Retriever & Generator LLM
+# =====================================================================
+# 1. RETRIEVER SINGLETON & LLM INITIALIZATION
+# =====================================================================
 
-# Initialize the vector database once so it stays warm in memory
-kb_manager = KnowledgeBaseManager("data/enterprise_policy.txt")
-vector_store = kb_manager.build_vector_store()
-# retireve the top 3 most semantically similar chunks
-retriever = vector_store.as_retriever(search_kwargs={"k": 3})
+# Singleton instance so we never re-index embeddings during app reruns
+_retriever_instance = None
 
-# Synthesis LLM: Generate the final grounded search queries
+def get_retriever():
+    """Lazily initializes and caches the Qdrant retriever in memory."""
+    global _retriever_instance
+    if _retriever_instance is None:
+        logger.info("Initializing vector store retriever singleton...")
+        kb_manager = KnowledgeBaseManager("data/enterprise_policy.txt")
+        vector_store = kb_manager.build_vector_store()
+        _retriever_instance = vector_store.as_retriever(search_kwargs={"k": 3})
+    return _retriever_instance
+
+
+# Generator LLM: High fidelity synthesis
 generator_llm = ChatGoogleGenerativeAI(
-    model = config.generator_model,
-    google_api_key = config.gemini_api_key,
+    model=config.generator_model,
+    google_api_key=config.gemini_api_key,
     temperature=0.1,
-    max_output_tokens = 1000
+    max_output_tokens=1000
 )
 
-# Rewrite LLM: Uses fast Flash-Lite to reformulate search queries
+# Query Rewriter LLM: Fast, deterministic rewrites
 rewrite_llm = ChatGoogleGenerativeAI(
-    model = config.grader_model,
-    google_api_key = config.gemini_api_key,
-    temperature = 0.0,
-    max_output_tokens = 150
+    model=config.grader_model,
+    google_api_key=config.gemini_api_key,
+    temperature=0.0,
+    max_output_tokens=150
 )
 
-# 2. Graph Nodes (state processors)
+
+# =====================================================================
+# 2. STATE MACHINE NODES
+# =====================================================================
 
 @track_node("retriever")
 def retriever_node(state: CRAGState) -> Dict[str, Any]:
-    """
-    Queries the Qdrant vector database using the current user question.
-    """
+    """Queries the cached Qdrant vector database using the current user question."""
     question = state["question"]
-    logger.info(f"Retrieving chunks form Qdrant for question: '{question}'")
+    logger.info(f"Retrieving candidate chunks for: '{question}'")
 
+    retriever = get_retriever()
     documents = retriever.invoke(question)
     logger.info(f"Retrieved {len(documents)} raw chunks from knowledge base.")
 
-    # Update the 'documents' list in state
     return {"documents": documents}
+
 
 @track_node("grade_documents")
 def grade_documents_node(state: CRAGState) -> Dict[str, Any]:
     """
-    Grades every retrieved document for relevance using Gemini.
-    Filters out noise and decide if a fallback web search is needed.
+    Grades all retrieved chunks in a single batched network call.
+    Filters out noise and determines whether fallback web search is required.
     """
     question = state["question"]
     documents = state.get("documents", [])
 
+    if not documents:
+        logger.warning("No documents present to grade. Triggering web search.")
+        return {"documents": [], "web_search_needed": True}
+
+    # Format all retrieved chunks into a single indexed text block
+    formatted_chunks = []
+    for idx, doc in enumerate(documents):
+        formatted_chunks.append(f"[Chunk Index {idx + 1}]\n{doc.page_content}")
+    chunks_block = "\n\n---\n\n".join(formatted_chunks)
+
     filtered_docs: List[Document] = []
     web_search_needed = False
 
-    logger.info(f"Grading {len(documents)} retrieved documents against question...")
+    try:
+        logger.info(f"Batch grading {len(documents)} chunks in a single LLM call...")
+        batch_result: Any = batch_doc_grader_chain.invoke({
+            "question": question,
+            "documents": chunks_block
+        })
 
-    for idx, doc in enumerate(documents):
-        try:
-            # Call the structured Pydantic grader chain built in src/graders.py
-            # The chain's inferred return type may be a dict or a Pydantic model;
-            # both expose the structured grader fields at runtime.
-            grade: Any = doc_grader_chain.invoke({
-                "question": question,
-                "document": doc.page_content
-            })
+        # Map decisions by chunk index
+        eval_map = {item.chunk_index: item for item in batch_result.evaluations}
 
-            score = grade.binary_score
-            explanation = grade.explanation
+        for idx, doc in enumerate(documents):
+            chunk_num = idx + 1
+            evaluation = eval_map.get(chunk_num)
 
-            if score == "yes":
-                logger.info(f"Chunk {idx + 1}: RELEVANT. Reason: {explanation}")
+            if evaluation and evaluation.binary_score == "yes":
+                logger.info(f"Chunk {chunk_num}: RELEVANT. Reason: {evaluation.explanation}")
                 filtered_docs.append(doc)
             else:
-                logger.warning(f"Chunks {idx + 1} Irrelevant. Reason: {explanation}")
+                reason = evaluation.explanation if evaluation else "Not evaluated"
+                logger.warning(f"Chunk {chunk_num}: IRRELEVANT. Reason: {reason}")
 
-        except Exception as exc:
-            logger.error(f"Grading failed for chunk {idx + 1}: {str(exc)}. Retaining chunk by default")
-            # Defensive design: Keep the chunk if evaluation fails unexpectedly
-            filtered_docs.append(doc)
+    except Exception as exc:
+        logger.error(f"Batch grading failed: {str(exc)}. Retaining all chunks defensively.", exc_info=True)
+        filtered_docs = documents
 
-    # CRAG Decision Rule: If no documents survived grading, trigger web search
     if not filtered_docs:
-        logger.warning("No retrieved documents passed relevance threshold. Triggering Web Search.")
+        logger.warning("All chunks scored irrelevant. Routing to Web Search.")
         web_search_needed = True
     else:
-        logger.info(f"{len(filtered_docs)}/{len(documents)} documents retained for generation.")
+        logger.info(f"{len(filtered_docs)}/{len(documents)} chunks passed relevance threshold.")
 
-    return {"documents": filtered_docs,
-            "web_search_needed": web_search_needed
-            }
+    return {
+        "documents": filtered_docs,
+        "web_search_needed": web_search_needed
+    }
+
 
 @track_node("rewrite_query")
 def rewrite_query_node(state: CRAGState) -> Dict[str, Any]:
-    """
-    Rewrites the user question into an optimized web search query.
-    Extracts core entities and removes internal conversational phrasing.
-    """
+    """Optimizes user question for external search engines by stripping internal references."""
     question = state["question"]
     logger.info(f"Transforming query for external search: '{question}'")
 
     rewrite_prompt = ChatPromptTemplate.from_messages([
         ("system", (
-            "You are an expert query optimizer. The user asked a question that could not be"
-            "answered by internal company documents. COnvert the question into a concise, keyword-rich"
-            "search engine query suitable for finding up to date facts on Google/Tavily."
-            "Do NOT include company specific internal codes in the query. Return ONLY the rewritten query text."
+            "You are an expert query optimizer. The user asked a question that could not be "
+            "answered by internal company documents. Convert the question into a concise, keyword-rich "
+            "search engine query suitable for finding up-to-date facts on Google/Tavily. "
+            "Do NOT include company-specific internal codes in the query. Return ONLY the rewritten query text."
         )),
         ("human", "Original Question:\n{question}\n\nOptimized Search Query:")
     ])
@@ -125,44 +144,37 @@ def rewrite_query_node(state: CRAGState) -> Dict[str, Any]:
     logger.info(f"Query rewritten: '{question}' -> '{rewritten_query}'")
     return {"question": rewritten_query}
 
+
 @track_node("web_search")
 def web_search_node(state: CRAGState) -> Dict[str, Any]:
-    """
-    Executes external web search via Tavily and appends results to state documents.
-    """
+    """Executes external web search via Tavily and appends results to state documents."""
     question = state["question"]
     logger.info(f"Executing web search fallback for: '{question}'")
 
     web_docs = execute_web_search(query=question, max_results=3)
     existing_docs = state.get("documents", [])
 
-    # combine surviving local documents (if any) with the fresh web snippets
-    combined_docs = existing_docs + web_docs
-    logger.info(f"Added {len(web_docs)} web search chunks to context.")
+    return {"documents": existing_docs + web_docs}
 
-    return {"documents": combined_docs}
 
 @track_node("generate")
 def generate_node(state: CRAGState) -> Dict[str, Any]:
-    """
-    Synthesizes the final answer using Gemini, grounded strictly on the verified context.
-    """
-    original_question = state.get("original_question", state['question'])
+    """Synthesizes the final answer using Gemini, grounded strictly on the verified context."""
+    original_question = state.get("original_question", state["question"])
     documents = state.get("documents", [])
 
-    # Format all chunk contents and their source citations into a clean context block
     context_blocks = []
     for doc in documents:
-        src=doc.metadata.get("source", "internal_policy")
+        src = doc.metadata.get("source", "internal_policy")
         chunk_id = doc.metadata.get("chunk_id", "doc")
-        context_blocks.append(f"[source: {src} | ID: {chunk_id}]\n{doc.page_content}")
+        context_blocks.append(f"[Source: {src} | ID: {chunk_id}]\n{doc.page_content}")
 
     formatted_context = "\n\n---\n\n".join(context_blocks)
 
     generation_prompt = ChatPromptTemplate.from_messages([
         ("system", (
-            "You are a strict, professional corporate complaince assistant.\n"
-            "Answer the user's question usng ONLY the provided verified context.\n"
+            "You are a strict, professional corporate compliance assistant.\n"
+            "Answer the user's question using ONLY the provided verified context.\n"
             "Rules:\n"
             "1. If facts or numbers are provided, state them accurately.\n"
             "2. Cite your sources inline using [Source: <name> | ID: <id>].\n"
