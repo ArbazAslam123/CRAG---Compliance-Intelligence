@@ -11,6 +11,8 @@ from graders import batch_doc_grader_chain
 from tools import execute_web_search
 from database import KnowledgeBaseManager
 
+import re
+
 # Cache retriever singleton so we never re-index in memory
 _retriever_instance = None
 
@@ -91,17 +93,42 @@ def grade_documents_node(state: CRAGState) -> Dict[str, Any]:
 
 @track_node("rewrite_query")
 def rewrite_query_node(state: CRAGState) -> Dict[str, Any]:
-    question = state["question"]
-    rewrite_prompt = ChatPromptTemplate.from_messages([
-        ("system", (
-            "You are an expert query optimizer. Convert the question into a concise keyword query "
-            "for search engines. Remove company-specific references. Return ONLY the search query."
-        )),
-        ("human", "Original Question:\n{question}\n\nSearch Query:")
-    ])
-    chain = rewrite_prompt | rewrite_llm | StrOutputParser()
-    rewritten_query = chain.invoke({"question": question}).strip()
-    return {"question": rewritten_query}
+    """
+    High-speed, zero-API query optimizer (0.001s).
+    Strips internal corporate policy codes, directive references,
+    and conversational preambles to formulate clean web search queries.
+    """
+    raw_question = state["question"]
+    logger.info(f"Optimizing query for web search: '{raw_question}'")
+
+    # 1. Strip internal compliance codes (e.g., CODE-REMOTE-99, ACC-STD-202)
+    cleaned = re.sub(r"\bCODE-[A-Z0-9-]+\b", "", raw_question, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\bACC-[A-Z0-9-]+\b", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\bSection\s+\d+(\.\d+)?\b", "", cleaned, flags=re.IGNORECASE)
+
+    # 2. Strip conversational preambles
+    preambles = [
+        r"^what is the\b",
+        r"^what are the\b",
+        r"^can you tell me\b",
+        r"^please explain\b",
+        r"^i want to know\b",
+        r"^does the company\b",
+        r"^according to policy\b"
+    ]
+    for pattern in preambles:
+        cleaned = re.sub(pattern, "", cleaned.strip(), flags=re.IGNORECASE)
+
+    # 3. Clean up punctuation and excessive whitespace
+    cleaned = re.sub(r"[?!.,;:\"]", "", cleaned)
+    optimized_query = re.sub(r"\s+", " ", cleaned).strip()
+
+    # Fallback to raw question if regex over-stripped
+    if len(optimized_query) < 4:
+        optimized_query = raw_question.strip()
+
+    logger.info(f"Query optimized locally: '{raw_question}' -> '{optimized_query}'")
+    return {"question": optimized_query}
 
 @track_node("web_search")
 def web_search_node(state: CRAGState) -> Dict[str, Any]:
