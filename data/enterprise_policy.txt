@@ -1,0 +1,117 @@
+================================================================================
+GLOBAL ENTERPRISE OPERATING MANUAL & COMPLIANCE DIRECTIVE (v2026.1)
+================================================================================
+
+Section 1: Workplace Ergonomics, Remote Work & Connectivity Allowances
+
+1.1 Remote Work Eligibility & Probationary Thresholds
+All full-time personnel classified under employment categories A, B, and E are eligible for regular hybrid or remote work arrangements upon formal approval by their designated Department Director. Independent contractors, part-time personnel, and probationary employees within their initial ninety (90) calendar days of employment are strictly prohibited from utilizing company-funded remote infrastructure subsidies. Remote work eligibility requires adherence to standard operating cybersecurity protocols as documented in Section 3 of this directive.
+
+1.2 Initial Home Office Setup Reimbursement
+Eligible employees establishing an approved home office space may claim a one-time reimbursement cap of up to $1,200.00 USD for qualified ergonomic hardware and physical office equipment. 
+- Qualified equipment includes: ergonomic desk chairs, motorized sit-to-stand desks, external computer monitors (maximum two units up to 27 inches each), ergonomic keyboards, mice, and monitor arms.
+- Non-qualified items include: decorative lighting, interior design accessories, office plants, coffee machines, soundproofing panels, and gaming peripherals.
+- All purchases must be processed through the internal procurement portal utilizing billing code CODE-REMOTE-99. Expense claims submitted without itemized receipts within thirty (30) days of purchase will be automatically rejected.
+
+1.3 Monthly Internet & Mobile Connectivity Stipend
+To support distributed operations, eligible remote employees receive a recurring monthly connectivity stipend of $75.00 USD, distributed automatically through standard payroll cycles under tracking reference CODE-CONNECT-45. 
+- The stipend is designated exclusively for residential broadband high-speed internet services maintaining a minimum throughput of 50 Mbps download and 15 Mbps upload.
+- Employees who also qualify for a corporate mobile device or enterprise cellular plan under Section 3.4 are not eligible for supplemental mobile data reimbursements under this code.
+
+
+================================================================================
+Section 2: Health, Wellness & Professional Development Benefits
+
+2.1 Annual Wellness Reimbursement Fund
+Full-time corporate personnel who have completed at least six (6) continuous months of service are entitled to participate in the Annual Corporate Wellness Program. The company provides reimbursement of up to $500.00 USD per calendar year for qualified personal wellness expenditures.
+- Covered expenditures include: commercial gym memberships, martial arts or fitness studio subscriptions, registered yoga classes, athletic footwear (one pair per year, capped at $150.00 USD), and ergonomic posture monitoring sensors.
+- Excluded expenditures: dietary supplements, weight-loss medications, cosmetic spa treatments, athletic apparel other than approved footwear, and extreme sports equipment.
+- To claim wellness funds, employees must submit proof of payment through the benefits management portal using allocation tag CODE-FIT-302.
+
+2.2 Continuing Education & Certification Grant
+Professional advancement is supported through an annual tuition and certification grant of up to $2,500.00 USD per employee. 
+- Grants apply strictly to accredited university coursework, industry-recognized professional certifications (e.g., AWS, PMP, CISSP, CFA), and corporate-sponsored technical bootcamps.
+- Pre-approval from the Department Vice President and Human Resources Talent Management is required prior to enrollment via form CE-REQ-01. Retroactive reimbursement requests are not honored.
+- An employee who voluntarily leaves the organization within twelve (12) calendar months of receiving education grant disbursements must repay 100% of the funds disbursed, deducted automatically from the final severance settlement.
+
+
+================================================================================
+Section 3: Information Security, Asset Management & Acceptable Use
+
+3.1 Hardware Provisioning, Lifecycle & Refresh Cadence
+The Enterprise Information Technology Department (ITD) supplies all computational assets required for employment. Standard developer workstations are scheduled for an automated hardware refresh every thirty-six (36) months from the initial issuance date.
+- Workstations that experience hardware failure prior to the 36-month lifecycle must undergo bench inspection by internal technicians before an expedited replacement is approved under requisition code CODE-HW-REFRESH.
+- Peripheral accessories (keyboards, headsets, webcams) have a lifecycle of eighteen (18) months and may be ordered directly through self-service IT kiosks under catalog ID ACC-STD-202.
+
+3.2 Incident Response, Lost Hardware & Critical Breach Protocols
+In the event of a lost, stolen, or compromised corporate device (laptop, smartphone, security token), the employee must immediately—and no later than two (2) hours following discovery—execute the following procedures:
+1. Contact the 24/7 Security Operations Center (SOC) Emergency Hotline via internal extension EXT-9110 or direct international dial +1-800-555-0199.
+2. File a formal Security Incident Ticket tagged with category SEC_BREACH_CRITICAL.
+3. If the asset was stolen while traveling, a local police report must be filed within twenty-four (24) hours, and a copy must be uploaded to the incident portal.
+Failure to report a missing company laptop containing proprietary data within the mandatory two-hour window constitutes a Category 4 Compliance Violation subject to disciplinary termination.
+
+3.3 Social Media Conduct, Brand Representation & Confidentiality
+Employees are strictly prohibited from publishing, broadcasting, or sharing proprietary intellectual property, internal software architectures, system configuration scripts, internal financial metrics, or client identification lists on public or semi-public social media platforms (including LinkedIn, X/Twitter, GitHub public gists, Reddit, and personal blogs).
+- Photographing internal workstations, multi-monitor desk setups displaying company dashboards, or physical access badges is considered a severe security infringement.
+- Violations of the social media confidentiality directive are tracked under audit file AUD-SOC-MED and incur immediate suspension of remote access privileges pending HR review.
+
+
+================================================================================
+Section 4: Corporate Travel, Per Diems & Business Expenses
+
+4.1 Commercial Air Travel Classes & Duration Thresholds
+All business air travel must be booked through the enterprise corporate travel management software at least fourteen (14) days prior to departure whenever feasible.
+- Domestic Travel & Flights Under 6 Hours: Standard Economy or Main Cabin seating is mandatory for all direct or connecting flights with total airborne flight time of less than six (6) continuous hours.
+- International & Long-Haul Travel (Over 6 Continuous Hours): Business class seating is permitted strictly for non-stop flight segments exceeding six (6) continuous hours of scheduled duration, subject to Director-level pre-authorization under code CODE-AIR-BIZ. 
+- First Class travel is strictly prohibited across all domestic and international flights, regardless of role, duration, or executive seniority.
+
+4.2 Lodging Per Diems & Regional City Limits
+Lodging expenses must adhere to the standard lodging cap defined by destination tier:
+- Standard Domestic Cities (Tier 3): Maximum reimbursement of $185.00 USD per night excluding taxes.
+- Major Domestic Hubs (Tier 2 - New York, San Francisco, Chicago, Seattle): Maximum reimbursement of $280.00 USD per night excluding taxes.
+- International Financial Hubs (Tier 1):
+  - London, UK: Maximum nightly rate of £245.00 GBP (or approximately $320.00 USD equivalent).
+  - Tokyo, Japan: Maximum nightly rate of ¥38,000 JPY (or approximately $250.00 USD equivalent).
+  - Zurich, Switzerland: Maximum nightly rate of 310.00 CHF.
+Any nightly rate exceeding these caps requires an approved Exception Voucher (Form TRV-EXC-09) signed by the Chief Financial Officer prior to travel departure.
+
+4.3 Meal Per Diems, Incidentals & Alcohol Restrictions
+Meals during authorized corporate business travel are reimbursed under a flat daily per diem rate of $75.00 USD for full travel days and $45.00 USD for departure/arrival days.
+- The company does not reimburse personal alcohol consumption under individual meal expense claims. Alcohol purchased during business entertainment dinners with external clients is permissible only when an Executive Director or higher is present and approved under booking code CODE-CLIENT-ENT.
+- Mini-bar charges, in-room pay-per-view media, personal laundry services for trips under five (5) days, and traffic/parking fines incurred during car rentals are non-reimbursable personal expenditures.
+
+
+================================================================================
+Section 5: Paid Leave, Medical Absences & Statutory Time Off
+
+5.1 Paid Time Off (PTO) Accrual Schedule
+Salaried exempt employees accrue Paid Time Off at the rate of 1.5 working days per completed full calendar month of continuous active service, equivalent to eighteen (18) days annually.
+- A maximum of five (5) unused PTO days may roll over into the subsequent calendar year. All rolled-over PTO days must be scheduled and taken before March 31st of the new year, or they expire without monetary payout.
+- Extended leaves of absence, unapproved sabbaticals, or periods of unpaid disciplinary suspension freeze PTO accrual for the duration of the absence.
+
+5.2 Sick Leave & Mandatory Medical Certification
+Employees are granted ten (10) paid sick days per calendar year, allocated on January 1st of each year.
+- Sick leave is reserved exclusively for personal illness, medical appointments, or immediate dependent care.
+- Any absence due to illness exceeding three (3) consecutive business days mandates the submission of a certified medical practitioner's note to the corporate HR Benefits department within five (5) days of returning to work. Failure to supply medical certification will convert the absence into unpaid leave under status CODE-UNPAID-MED.
+
+5.3 Bereavement & Family Compassionate Leave
+In the event of the death of an immediate family member (spouse, child, parent, legal guardian, sibling), employees are granted up to five (5) consecutive paid working days of compassionate leave under code CODE-BEREAVE-DIR.
+- For extended family members (grandparents, cousins, in-laws), up to two (2) paid working days are granted under code CODE-BEREAVE-EXT.
+- Additional unpaid leave or allocation from accrued PTO may be requested through the HR Service Center if international travel is required to attend services.
+
+
+================================================================================
+Section 6: Compliance Governance, Whistleblowing & Disciplinary Scale
+
+6.1 Anonymous Ethics Hotline & Whistleblower Protection
+The organization enforces an unyielding zero-tolerance retaliation policy regarding employees who report suspected accounting fraud, safety infractions, harassment, or data breaches.
+- Reports may be submitted confidentially 24/7 via the automated whistleblower gateway at ethics.internal-compliance.net or by phone at ETHICS-WHISTLE-88 (toll-free: 1-888-384-4278).
+- Retaliation in any form against an employee who reports a policy breach in good faith results in immediate termination of the offending party under disciplinary category CODE-TERM-RETAL.
+
+6.2 Escalation Matrix & Disciplinary Sanction Levels
+Compliance infractions are evaluated across four standardized severity tiers:
+- Tier 1 (Minor Infraction): Informal coaching and documented verbal notification. (e.g., failure to submit expense receipt within 30 days).
+- Tier 2 (Moderate Infraction): Formal written reprimand placed in personnel file for 12 months. (e.g., booking business class travel on a 4-hour flight without pre-approval).
+- Tier 3 (Severe Infraction): Mandatory suspension without pay for 5 to 15 business days and forfeiture of remote work authorization. (e.g., repeated unexcused absences, failing to report lost company phone within 24 hours).
+- Tier 4 (Critical Infraction): Immediate summary dismissal and potential civil or criminal litigation referral. (e.g., disclosing client lists or internal dashboards on public social media, unauthorized exfiltration of proprietary IP).
+================================================================================
