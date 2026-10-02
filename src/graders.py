@@ -10,26 +10,17 @@ from config import config
 warnings.filterwarnings("ignore", category=UserWarning, module="google")
 
 # =====================================================================
-# 1. EVALUATION SCHEMAS (Pydantic Data Models)
+# 1. ULTRA-LEAN EVALUATION SCHEMAS (Pydantic Data Models)
 # =====================================================================
 
-class ChunkEvaluation(BaseModel):
-    """Relevance verdict for an individual document chunk."""
-    chunk_index: int = Field(
-        description="The 1-based index number corresponding to the chunk (e.g., 1, 2, 3)."
-    )
-    binary_score: Literal["yes", "no"] = Field(
-        description="Relevance score: 'yes' if the chunk contains keywords or concepts related to the question, otherwise 'no'."
-    )
-    explanation: str = Field(
-        description="One brief sentence explaining why this specific chunk is or is not relevant."
-    )
-
-
-class BatchGradeDocuments(BaseModel):
-    """Batch evaluation container for all candidate chunks in one call."""
-    evaluations: List[ChunkEvaluation] = Field(
-        description="A list containing the relevance evaluation for each retrieved chunk."
+class LeanDocGrading(BaseModel):
+    """
+    Returns only the 1-based indices of relevant chunks.
+    Generating ~5 tokens instead of ~300 eliminates API throttling.
+    """
+    relevant_indices: List[int] = Field(
+        default_factory=list,
+        description="List of 1-based chunk numbers (e.g., [1, 3] or [] if none) containing facts relevant to answering the question."
     )
 
 
@@ -57,42 +48,38 @@ class GradeAnswer(BaseModel):
 # 2. MODEL INITIALIZATION
 # =====================================================================
 
-# Use Gemini 2.5 Flash-Lite for fast, low-latency evaluation
+# Fast Flash-Lite evaluator restricted to a tiny output token window
 evaluator_llm = ChatGoogleGenerativeAI(
     model=config.grader_model,
     google_api_key=config.gemini_api_key,
     temperature=0.0,
-    max_output_tokens=500
+    max_output_tokens=100
 )
 
 
 # =====================================================================
-# 3. PROMPTS & STRUCTURED CHAINS
+# 3. LEAN BATCH GRADER CHAIN
 # =====================================================================
 
-# --- OPTIMIZED BATCH GRADER: Evaluates all retrieved chunks at once ---
-batch_doc_grader_prompt = ChatPromptTemplate.from_messages([
+fast_grader_prompt = ChatPromptTemplate.from_messages([
     ("system", (
-        "You are an expert compliance auditor grading the relevance of retrieved document chunks to a user question.\n"
-        "Carefully evaluate each numbered chunk independently.\n"
-        "Rules:\n"
-        "- If a chunk contains keywords, policies, or partial topical overlap to the question, grade it 'yes'.\n"
-        "- If a chunk is completely irrelevant to the question, grade it 'no'.\n"
-        "- You must return an evaluation entry for EVERY provided chunk index."
+        "You are an expert compliance relevance filter.\n"
+        "Evaluate the numbered candidate text chunks against the user question.\n"
+        "Identify which chunks contain policies, keywords, or facts directly relevant to answering the question.\n"
+        "Return ONLY the list of 1-based chunk indices (e.g., [1, 2] or [] if none are relevant)."
     )),
     ("human", (
         "USER QUESTION:\n{question}\n\n"
-        "RETRIEVED DOCUMENT CHUNKS:\n{documents}"
+        "CANDIDATE CHUNKS:\n{documents}"
     ))
 ])
 
-batch_doc_grader_chain = batch_doc_grader_prompt | evaluator_llm.with_structured_output(
-    BatchGradeDocuments,
+fast_doc_grader_chain = fast_grader_prompt | evaluator_llm.with_structured_output(
+    LeanDocGrading,
     method="json_schema"
 )
 
-
-# --- GRADER 2: Hallucination / Grounding Audit ---
+# Hallucination chain retained for audit compatibility
 hallucination_prompt = ChatPromptTemplate.from_messages([
     ("system", (
         "You are a strict compliance auditor assessing whether an AI-generated answer is grounded in the provided facts.\n"
@@ -107,24 +94,5 @@ hallucination_prompt = ChatPromptTemplate.from_messages([
 
 hallucination_grader_chain = hallucination_prompt | evaluator_llm.with_structured_output(
     GradeHallucinations,
-    method="json_schema"
-)
-
-
-# --- GRADER 3: Answer Quality / Usefulness ---
-answer_grader_prompt = ChatPromptTemplate.from_messages([
-    ("system", (
-        "You are an evaluator assessing whether an answer directly resolves the user's question.\n"
-        "If the answer provides a clear and actionable response to what was asked, score it 'yes'.\n"
-        "If the answer evades the question or goes off-topic, score it 'no'."
-    )),
-    ("human", (
-        "USER QUESTION:\n{question}\n\n"
-        "GENERATED ANSWER:\n{generation}"
-    ))
-])
-
-answer_grader_chain = answer_grader_prompt | evaluator_llm.with_structured_output(
-    GradeAnswer,
     method="json_schema"
 )
