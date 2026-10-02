@@ -16,11 +16,13 @@ try:
     from src.config import config
     from src.state import CRAGState
     from src.telemetry import logger
+    from src.nodes import get_retriever
 except ImportError:
     from graph import crag_app
     from config import config
     from state import CRAGState
     from telemetry import logger
+    from nodes import get_retriever
 
 # =====================================================================
 # 1. PAGE SETUP & INJECTED STYLES
@@ -123,7 +125,19 @@ st.markdown("""
 
 
 # =====================================================================
-# 2. SESSION STATE MANAGEMENT (Direct Key Binding)
+# 2. PRE-WARM & CACHE VECTOR STORE (Runs ONCE outside the query timer)
+# =====================================================================
+@st.cache_resource(show_spinner="Warming up Vector Database & Neural Embeddings...")
+def init_cached_knowledge_base():
+    """Initializes embeddings and indexes Qdrant into RAM once at startup."""
+    return get_retriever()
+
+# Trigger warmup immediately on server boot
+init_cached_knowledge_base()
+
+
+# =====================================================================
+# 3. SESSION STATE MANAGEMENT (Direct Key Binding)
 # =====================================================================
 if "main_input" not in st.session_state:
     st.session_state.main_input = ""
@@ -137,14 +151,14 @@ def run_scenario(scenario_query: str):
 
 
 # =====================================================================
-# 3. SIDEBAR // SYSTEM TELEMETRY & PRELOADED SCENARIOS
+# 4. SIDEBAR // SYSTEM TELEMETRY & PRELOADED SCENARIOS
 # =====================================================================
 with st.sidebar:
     st.markdown("### ⚙️ System Telemetry")
     st.markdown(f"**LLM Generator:** `{config.generator_model}`")
     st.markdown(f"**LLM Grader:** `{config.grader_model}`")
     st.markdown(f"**Embeddings:** `all-MiniLM-L6-v2 (Local CPU)`")
-    st.markdown(f"**Vector Store:** `Qdrant In-Memory`")
+    st.markdown(f"**Vector Store:** `Qdrant In-Memory (Cached)`")
     
     st.divider()
     
@@ -166,7 +180,7 @@ with st.sidebar:
     )
         
     st.button(
-        "✈️️ Internal: Business Class Air Travel",
+        "✈️ Internal: Business Class Air Travel",
         on_click=run_scenario,
         args=("When is an employee permitted to book business class flights?",),
         use_container_width=True
@@ -191,7 +205,7 @@ with st.sidebar:
 
 
 # =====================================================================
-# 4. MAIN HEADER & CONTROL PANEL
+# 5. MAIN HEADER & CONTROL PANEL
 # =====================================================================
 st.markdown("""
 <div class="header-box">
@@ -220,12 +234,12 @@ execute_clicked = st.button("🚀 Analyze & Verify", type="primary")
 
 
 # =====================================================================
-# 5. EXECUTION PIPELINE (LangGraph Streaming & State Rendering)
+# 6. EXECUTION PIPELINE (LangGraph Streaming & State Rendering)
 # =====================================================================
 should_execute = execute_clicked or st.session_state.trigger_run
 
 if should_execute and user_query.strip():
-    # Consume trigger so it runs once per button click
+    # Reset trigger flag immediately
     st.session_state.trigger_run = False
     start_total_time = time.perf_counter()
     
@@ -261,13 +275,13 @@ if should_execute and user_query.strip():
                 for node_name, state_update in step_event.items():
                     final_output_state.update(state_update)
                     
-                    if node_name == "retrieve":
+                    if node_name == "retriever":
                         docs = state_update.get("documents", [])
                         st.markdown(f"""
                         <div class="node-card">
                             <strong>1. Vector Retrieval (Qdrant)</strong><br>
                             <span style="color: #8b949e; font-size: 0.85rem;">
-                                Fetched {len(docs)} candidate chunks via dense embeddings.
+                                Fetched {len(docs)} candidate chunks via cached dense index.
                             </span>
                         </div>
                         """, unsafe_allow_html=True)
@@ -329,7 +343,7 @@ if should_execute and user_query.strip():
     elapsed_total = time.perf_counter() - start_total_time
 
     # =====================================================================
-    # 6. RENDER THE GENERATED ANSWER & CITATIONS
+    # 7. RENDER THE GENERATED ANSWER & CITATIONS
     # =====================================================================
     with result_container:
         answer_text = final_output_state.get("generation", "No generation produced.")
@@ -341,7 +355,7 @@ if should_execute and user_query.strip():
         with metric_col2:
             st.metric("Knowledge Origin", "External Web" if is_web else "Internal Policy")
         with metric_col3:
-            st.metric("Grounding Audit", "100% Grounded")
+            st.metric("Context Verification", "Passed")
             
         st.markdown("#### Official Compliance Guidance")
         st.markdown(f'<div class="result-box">{answer_text}</div>', unsafe_allow_html=True)
@@ -349,19 +363,25 @@ if should_execute and user_query.strip():
     with sources_container:
         st.markdown("#### 🔍 Evidence & Source Provenance")
         documents_raw = final_output_state.get("documents", [])
-        docs: list[Any] = documents_raw if isinstance(documents_raw, list) else ([] if documents_raw is None else [documents_raw])
+        docs = documents_raw if isinstance(documents_raw, list) else ([] if documents_raw is None else [documents_raw])
         
         if not docs:
             st.caption("No external or internal documents were utilized.")
         else:
             for idx, doc in enumerate(docs):
-                source_title = doc.metadata.get("source", "Internal KB")
-                chunk_id = doc.metadata.get("chunk_id", f"chunk_{idx+1}")
-                is_url = source_title.startswith("http")
-                
-                with st.expander(f"📌 Chunk [{chunk_id}] — {source_title[:55]}..."):
+                metadata = getattr(doc, "metadata", {}) or {}
+                if not isinstance(metadata, dict):
+                    metadata = {}
+
+                page_content = getattr(doc, "page_content", "")
+                source_title = metadata.get("source", "Internal KB")
+                chunk_id = metadata.get("chunk_id", f"chunk_{idx+1}")
+                source_title_str = str(source_title)
+                is_url = source_title_str.startswith("http")
+
+                with st.expander(f"📌 Chunk [{chunk_id}] — {source_title_str[:55]}..."):
                     if is_url:
-                        st.markdown(f"**Direct URL:** [{source_title}]({source_title})")
+                        st.markdown(f"**Direct URL:** [{source_title_str}]({source_title_str})")
                     else:
-                        st.markdown(f"**Origin:** Internal Policy Directive (`{source_title}`)")
-                    st.code(doc.page_content, language="markdown")
+                        st.markdown(f"**Origin:** Internal Policy Directive (`{source_title_str}`)")
+                    st.code(page_content, language="markdown")

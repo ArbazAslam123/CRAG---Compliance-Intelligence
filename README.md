@@ -41,7 +41,7 @@ Unlike standard linear RAG pipelines that blindly trust vector database output, 
        ┌──────────────────────┐                           │
        │ Fallback Web Search  │                           │
        │     Tavily API       │                           │
-       └──────────┬───────────┘                           │
+       └──────────┬───────────┘                            │
                   │                                       │
                   └───────────────────┬───────────────────┘
                                       │
